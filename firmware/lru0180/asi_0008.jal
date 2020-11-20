@@ -70,21 +70,21 @@ forever loop
     
     end if
 
-	cf = get_can_frame(id_indicated_airspeed)
+    cf = get_can_frame(id_indicated_airspeed)
     if(cf.dlc > 0) then
     
         asi = get_can_float(cf) * float(3.6) -- CANAerospace Indicated Airspeed m/s to KM/H
 
         if (asi <= float(0)) then
             dsta = 0
-		elsif (asi > float(0) & asi <= float(40)) then
+	elsif (asi > float(0) & asi <= float(40)) then
             dsta = dword(asi * float(15))
-		elsif (asi > float(40) & asi <= float(120)) then
+	elsif (asi > float(40) & asi <= float(120)) then
             dsta = dword(600 + ((asi - 40) * float(60)))
         elsif (asi > float(120) & asi <= float(150)) then
             dsta = dword(5400 + ((asi - 120) * float(36)))
         elsif (asi > float(150) & asi <= float(200)) then
-			dsta = dword(6480 + ((asi - 150) * float(43.2)))
+	    dsta = dword(6480 + ((asi - 150) * float(43.2)))
         elsif (asi > float(200) & asi <= float(300)) then
             dsta = dword(8640 + ((asi - 200) * float(36)))
         elsif (asi > float(300)) then
