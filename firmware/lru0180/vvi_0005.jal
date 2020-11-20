@@ -51,7 +51,7 @@ dsta = 0
 setup_can_init()
 add_can_rxfilter(id_request_bootloader)
 add_can_rxfilter(id_lamps_0_31)
-add_can_rxfilter(id_altitude_rate)
+add_can_rxfilter(id_computed_vertical_velocity)
 setup_can_end()
 
 led_l = off
@@ -72,21 +72,21 @@ forever loop
     
     end if
 	
-    cf = get_can_frame(id_altitude_rate)
+    cf = get_can_frame(id_computed_vertical_velocity)
     if(cf.dlc > 0) then
 
-      vvi = (get_can_float(cf) + float(5.0)) -- CANAerospace computed vertical velocity m/s
+        vvi = get_can_float(cf) + float(5.0)
 
-      if (vvi <= float(0)) then
-        dsta = 0
-      elsif (vvi > float(0) & vvi <= float(10)) then
-        dsta = dword(vvi * float(648))
-      elsif (vvi > float(10)) then
-        dsta = 6480
-      end if
+        if (vvi <= 0) then
+            dsta = 0
+        elsif (vvi > float(0) & vvi <= float(10)) then
+            dsta = dword(vvi * float(648))
+        elsif (vvi > 10) then
+            dsta = 6480
+        end if
 
-      set_vid2905()
-
+        set_vid2905()
+    
     end if
 
 end loop
