@@ -1,0 +1,135 @@
+------------------------------------------------------------------------------------------------------------------------
+-- Copyright (c) 2021, SimMeters.
+-- All rights reserved. Released under the BSD license.
+-- tqs_0000.jal 1.0 01/01/2021 (C212 TQS Elev Trim Wheel AP + PILOT CONTROLLER BTS7960)
+
+-- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+-- following conditions are met:
+
+-- 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
+-- following disclaimer.
+
+-- 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+-- following disclaimer in the documentation and/or other materials provided with the distribution.
+
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+-- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+-- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+-- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+-- USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+------------------------------------------------------------------------------------------------------------------------
+include canaerospace -- Include library for CANAerospace ID's
+include lru0000      -- Include library for LRU Type
+include canbus       -- Include library for CANBus
+
+------------------------------------------------------------------------------------------------------------------------
+-- Variables and Configuration
+------------------------------------------------------------------------------------------------------------------------
+var can_frame cf
+var float elevator_position = 0.0
+var dword trim_system_switches = 0
+
+------------------------------------------------------------------------------------------------------------------------
+-- Initialization
+------------------------------------------------------------------------------------------------------------------------
+_usec_delay(1000000) -- 1sec delay on start
+
+TRISB_TRISB0    = 1 -- input L_IS
+TRISB_TRISB1    = 1 -- input R_IS
+
+TRISB_TRISB4    = 0 -- output L_EN
+LATB_LATB4      = 1 -- L_EN high
+
+TRISB_TRISB5    = 0 -- output R_EN
+LATB_LATB5      = 1 -- R_EN high
+
+TRISC_TRISC6    = 0 -- output L_PWM
+TRISC_TRISC7    = 0 -- output R_PWM
+
+PR2 			= 0b01001010 	-- Preescaler 1/16 48Mhz Fosc = 48000000 Hz / Fpwm = 10000.00 Hz (Requested : 10000 Hz)
+T2CON 			= 0b00000111 	-- Timmer TMR2 CCP
+const byte PWM_CCP_PRL [11] = { 0b00000000, 0b00000111, 0b00001110, 0b00010110, 0b00011101, 0b00100101, 0b00101100, 0b00110100, 0b00111011, 0b01000011, 0b01001010 }
+const byte PWM_CCP_CON [11] = { 0b00001100, 0b00011100, 0b00111100, 0b00011100, 0b00111100, 0b00011100, 0b00111100, 0b00011100, 0b00111100, 0b00011100, 0b00111100 }
+
+setup_can_init()
+add_can_rxfilter(id_request_bootloader) 	-- add support for CANBus firmware upgrade
+add_can_rxfilter(id_elevator_position) 		-- Elev Trim Position
+add_can_rxfilter(id_trim_system_switches) 	-- Elev Trim Mode
+setup_can_end()
+
+------------------------------------------------------------------------------------------------------------------------
+-- TrimUP
+------------------------------------------------------------------------------------------------------------------------
+procedure TrimUP() is
+    
+    CCPR3L 	= PWM_CCP_PRL[2]
+	CCP3CON = PWM_CCP_CON[2]
+    CCPR4L 	= PWM_CCP_PRL[0]
+	CCP4CON = PWM_CCP_CON[0]
+
+	set_pin(P21, high) 	-- green led on
+	set_pin(P22, low) 	-- red led off
+
+end procedure
+
+------------------------------------------------------------------------------------------------------------------------
+-- TrimDOWN
+------------------------------------------------------------------------------------------------------------------------
+procedure TrimDOWN() is
+
+    CCPR3L 	= PWM_CCP_PRL[0]
+	CCP3CON = PWM_CCP_CON[0]
+    CCPR4L 	= PWM_CCP_PRL[2]
+	CCP4CON = PWM_CCP_CON[2]
+
+	set_pin(P21, low) 	-- green led off
+	set_pin(P22, high) 	-- red led on
+
+end procedure
+
+------------------------------------------------------------------------------------------------------------------------
+-- TrimOFF
+------------------------------------------------------------------------------------------------------------------------
+procedure TrimOFF() is
+
+    CCPR3L 	= PWM_CCP_PRL[0]
+	CCP3CON = PWM_CCP_CON[0]
+    CCPR4L 	= PWM_CCP_PRL[0]
+	CCP4CON = PWM_CCP_CON[0]
+	set_pin(P21, low) 	-- green led off
+	set_pin(P22, low) 	-- red led off
+
+end procedure
+
+------------------------------------------------------------------------------------------------------------------------
+-- Main Loop
+------------------------------------------------------------------------------------------------------------------------
+forever loop
+
+    request_bootloader("tqs_0000") -- add support for CANBus firmware upgrade by name
+
+	cf = get_can_frame(id_elevator_position)
+	if(cf.dlc > 0) then
+		elevator_position = get_can_float(cf)
+	end if
+
+	cf = get_can_frame(id_trim_system_switches)
+	if(cf.dlc > 0) then
+		trim_system_switches = get_can_uint32(cf)
+	end if
+
+	if(trim_system_switches == 0) then -- TrimOFF
+		TrimOFF()
+	end if
+
+	if((trim_system_switches == 1) & (elevator_position <= 16000.0)) then -- TrimUP +
+		TrimUP()
+	end if
+
+	if((trim_system_switches == 2) & (elevator_position >= -16000.0)) then -- TrimDOWN -
+		TrimDOWN()
+	end if
+
+end loop

@@ -1,0 +1,1010 @@
+------------------------------------------------------------------------------------------------------------------------
+-- Copyright (c) 2021, SimMeters.
+-- All rights reserved. Released under the BSD license.
+-- tqs_0002.jal 1.0 01/01/2021 (DISPLAY C212 TQS Rudder and Aileron Trim Indicator Check Aircraft.cfg)
+
+-- Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+-- following conditions are met:
+
+-- 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
+-- following disclaimer.
+
+-- 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+-- following disclaimer in the documentation and/or other materials provided with the distribution.
+
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+-- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+-- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+-- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+-- SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+-- WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+-- USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+------------------------------------------------------------------------------------------------------------------------
+include canaerospace 	-- Include library for CANAerospace ID's
+include lru0000      	-- Include library for LRU Type
+include canbus       	-- Include library for CANBus
+include st7735s		 	-- Include library for Display
+include gfxlib		 	-- Include library for Graphics
+
+------------------------------------------------------------------------------------------------------------------------
+-- Custom TQS Font
+------------------------------------------------------------------------------------------------------------------------
+const byte font_tqs[1924] = {
+32,  											-- font_width
+32,												-- font_height
+48,												-- starting_char
+15, 											-- num_chars
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 48 '0'
+0x00, 0x1F, 0xF8, 0x00, 0x00, 0x1F, 0xF8, 0x00, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x00, 0x1F, 0xF8, 0x00, 0x00, 0x1F, 0xF8, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 49 '1'
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x07, 0xE0, 0x00, 0x00, 0x07, 0xE0, 0x00, 
+0x00, 0x7F, 0xE0, 0x00, 0x00, 0x7F, 0xE0, 0x00, 
+0x00, 0x7F, 0xE0, 0x00, 0x00, 0x7F, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 50 '2'
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x07, 0xE0, 0x07, 0x80, 0x07, 0xE0, 
+0x00, 0x00, 0x1F, 0x80, 0x00, 0x00, 0x1F, 0x80, 
+0x00, 0x00, 0x7E, 0x00, 0x00, 0x00, 0x7E, 0x00, 
+0x00, 0x01, 0xF8, 0x00, 0x00, 0x01, 0xF8, 0x00, 
+0x00, 0x07, 0xE0, 0x00, 0x00, 0x07, 0xE0, 0x00, 
+0x00, 0x1F, 0x80, 0x00, 0x00, 0x1F, 0x80, 0x00, 
+0x00, 0x7E, 0x00, 0x00, 0x00, 0x7E, 0x00, 0x00, 
+0x01, 0xF8, 0x00, 0x00, 0x01, 0xF8, 0x00, 0x00, 
+0x07, 0xFF, 0xFF, 0xF0, 0x07, 0xFF, 0xFF, 0xF0, 
+0x07, 0xFF, 0xFF, 0xF0, 0x07, 0xFF, 0xFF, 0xF0, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 51 '3'
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 
+0x00, 0x00, 0x07, 0xE0, 0x00, 0x00, 0x07, 0xE0, 
+0x00, 0x1F, 0xFF, 0x80, 0x00, 0x1F, 0xFF, 0x80, 
+0x00, 0x1F, 0xFE, 0x00, 0x00, 0x1F, 0xFE, 0x00, 
+0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 
+0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 52 '4'
+0x00, 0x00, 0x7E, 0x00, 0x00, 0x00, 0x7E, 0x00, 
+0x00, 0x01, 0xFE, 0x00, 0x00, 0x01, 0xFE, 0x00, 
+0x00, 0x07, 0xFE, 0x00, 0x00, 0x07, 0xFE, 0x00, 
+0x00, 0x1F, 0x9E, 0x00, 0x00, 0x1F, 0x9E, 0x00, 
+0x00, 0x7E, 0x1E, 0x00, 0x00, 0x7E, 0x1E, 0x00, 
+0x01, 0xF8, 0x1E, 0x00, 0x01, 0xF8, 0x1E, 0x00, 
+0x07, 0xE0, 0x1E, 0x00, 0x07, 0xE0, 0x1E, 0x00, 
+0x07, 0x80, 0x1E, 0x00, 0x07, 0x80, 0x1E, 0x00, 
+0x07, 0xFF, 0xFF, 0xE0, 0x07, 0xFF, 0xFF, 0xE0, 
+0x07, 0xFF, 0xFF, 0xE0, 0x07, 0xFF, 0xFF, 0xE0, 
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 53 '5'
+0x07, 0xFF, 0xFF, 0xE0, 0x07, 0xFF, 0xFF, 0xE0, 
+0x07, 0xFF, 0xFF, 0xE0, 0x07, 0xFF, 0xFF, 0xE0, 
+0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 
+0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 
+0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 
+0x07, 0xFF, 0xFE, 0x00, 0x07, 0xFF, 0xFE, 0x00, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x00, 0x00, 0x07, 0xE0, 0x00, 0x00, 0x07, 0xE0, 
+0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 
+0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 54 '6'
+0x00, 0x01, 0xFE, 0x00, 0x00, 0x01, 0xFE, 0x00, 
+0x00, 0x07, 0xFE, 0x00, 0x00, 0x07, 0xFE, 0x00, 
+0x00, 0x1F, 0x80, 0x00, 0x00, 0x1F, 0x80, 0x00, 
+0x00, 0x7E, 0x00, 0x00, 0x00, 0x7E, 0x00, 0x00, 
+0x01, 0xF8, 0x00, 0x00, 0x01, 0xF8, 0x00, 0x00, 
+0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 0x00, 
+0x07, 0xFF, 0xFE, 0x00, 0x07, 0xFF, 0xFE, 0x00, 
+0x07, 0xFF, 0xFF, 0x80, 0x07, 0xFF, 0xFF, 0x80, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 55 '7'
+0x07, 0xFF, 0xFF, 0xE0, 0x07, 0xFF, 0xFF, 0xE0, 
+0x07, 0xFF, 0xFF, 0xE0, 0x07, 0xFF, 0xFF, 0xE0, 
+0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 
+0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 
+0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 
+0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0x78, 0x00, 
+0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0x78, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x01, 0xE0, 0x00, 0x00, 0x01, 0xE0, 0x00, 
+0x00, 0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 0x00, 
+0x00, 0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 0x00, 
+0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 
+0x00, 0x1E, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 56 '8'
+0x00, 0x1F, 0xF8, 0x00, 0x00, 0x1F, 0xF8, 0x00, 
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x01, 0xF8, 0x1F, 0x80, 0x01, 0xF8, 0x1F, 0x80, 
+0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 
+0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 
+0x01, 0xF8, 0x1F, 0x80, 0x01, 0xF8, 0x1F, 0x80, 
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0x80, 0x01, 0xE0, 0x07, 0x80, 0x01, 0xE0, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 57 '9'
+0x00, 0x7F, 0xFE, 0x00, 0x00, 0x7F, 0xFE, 0x00, 
+0x01, 0xFF, 0xFF, 0x80, 0x01, 0xFF, 0xFF, 0x80, 
+0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 0x07, 0xE0, 
+0x07, 0x80, 0x01, 0xF0, 0x07, 0x80, 0x01, 0xF0, 
+0x07, 0x80, 0x01, 0xF0, 0x07, 0x80, 0x01, 0xF0, 
+0x07, 0xE0, 0x07, 0xF0, 0x07, 0xE0, 0x07, 0xF0, 
+0x01, 0xFF, 0xFF, 0xF0, 0x01, 0xFF, 0xFF, 0xF0, 
+0x00, 0x7F, 0xFF, 0xE0, 0x00, 0x7F, 0xFF, 0xE0, 
+0x00, 0x00, 0x07, 0x80, 0x00, 0x00, 0x07, 0x80, 
+0x00, 0x00, 0x1F, 0x80, 0x00, 0x00, 0x1F, 0x80, 
+0x00, 0x00, 0x7E, 0x00, 0x00, 0x00, 0x7E, 0x00, 
+0x00, 0x01, 0xF8, 0x00, 0x00, 0x01, 0xF8, 0x00, 
+0x00, 0x7F, 0xE0, 0x00, 0x00, 0x7F, 0xE0, 0x00, 
+0x00, 0x7F, 0x80, 0x00, 0x00, 0x7F, 0x80, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 58 ':' -> 10
+0x1E, 0x01, 0xFF, 0x80, 0x3E, 0x01, 0xFF, 0x80, 
+0x3E, 0x1F, 0xFF, 0xF8, 0x7E, 0x1F, 0xFF, 0xF8, 
+0x7E, 0x1E, 0x00, 0x78, 0x7E, 0x1E, 0x00, 0x78, 
+0x7E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x78, 0x00, 0x1E, 0x1E, 0x78, 0x00, 0x1E, 
+0x1E, 0x1E, 0x00, 0x78, 0x1E, 0x1E, 0x00, 0x78, 
+0x1E, 0x1F, 0xFF, 0xF8, 0x1E, 0x1F, 0xFF, 0xF8, 
+0x1E, 0x01, 0xFF, 0x80, 0x1E, 0x01, 0xFF, 0x80, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 59 ';' --> ' '
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 60 '<'
+0x00, 0x00, 0xF0, 0x00, 0x00, 0x00, 0xF0, 0x00, 
+0x00, 0x03, 0xF0, 0x00, 0x00, 0x03, 0xF0, 0x00, 
+0x00, 0x0F, 0xF0, 0x00, 0x00, 0x0F, 0xF0, 0x00, 
+0x00, 0x3F, 0xF0, 0x00, 0x00, 0x3F, 0xF0, 0x00, 
+0x00, 0xFF, 0xF0, 0x00, 0x00, 0xFF, 0xF0, 0x00, 
+0x03, 0xFF, 0xF0, 0x00, 0x03, 0xFF, 0xFF, 0xF0, 
+0x0F, 0xFF, 0xFF, 0xF0, 0x0F, 0xFF, 0xFF, 0xF0, 
+0x0F, 0xFF, 0xFF, 0xF0, 0x0F, 0xFF, 0xFF, 0xF0, 
+0x03, 0xFF, 0xFF, 0xF0, 0x03, 0xFF, 0xF0, 0x00, 
+0x00, 0xFF, 0xF0, 0x00, 0x00, 0xFF, 0xF0, 0x00, 
+0x00, 0x3F, 0xF0, 0x00, 0x00, 0x3F, 0xF0, 0x00, 
+0x00, 0x0F, 0xF0, 0x00, 0x00, 0x0F, 0xF0, 0x00, 
+0x00, 0x03, 0xF0, 0x00, 0x00, 0x03, 0xF0, 0x00, 
+0x00, 0x00, 0xF0, 0x00, 0x00, 0x00, 0xF0, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 61 '=' -> ' '
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, -- character 62 '>'
+0x00, 0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 
+0x00, 0x0F, 0xC0, 0x00, 0x00, 0x0F, 0xC0, 0x00, 
+0x00, 0x0F, 0xF0, 0x00, 0x00, 0x0F, 0xF0, 0x00, 
+0x00, 0x0F, 0xFC, 0x00, 0x00, 0x0F, 0xFC, 0x00, 
+0x00, 0x0F, 0xFF, 0x00, 0x00, 0x0F, 0xFF, 0x00, 
+0x00, 0x0F, 0xFF, 0xC0, 0x0F, 0xFF, 0xFF, 0xC0, 
+0x0F, 0xFF, 0xFF, 0xF0, 0x0F, 0xFF, 0xFF, 0xF0, 
+0x0F, 0xFF, 0xFF, 0xF0, 0x0F, 0xFF, 0xFF, 0xF0, 
+0x0F, 0xFF, 0xFF, 0xC0, 0x00, 0x0F, 0xFF, 0xC0, 
+0x00, 0x0F, 0xFF, 0x00, 0x00, 0x0F, 0xFF, 0x00, 
+0x00, 0x0F, 0xFC, 0x00, 0x00, 0x0F, 0xFC, 0x00, 
+0x00, 0x0F, 0xF0, 0x00, 0x00, 0x0F, 0xF0, 0x00, 
+0x00, 0x0F, 0xC0, 0x00, 0x00, 0x0F, 0xC0, 0x00, 
+0x00, 0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+
+------------------------------------------------------------------------------------------------------------------------
+-- Variables Declaration
+------------------------------------------------------------------------------------------------------------------------
+var can_frame cf
+var sbyte rdr 		= 0
+var sbyte rdr_lat 	= 0
+var sbyte ail 		= 0
+var sbyte ail_lat 	= 0
+
+------------------------------------------------------------------------------------------------------------------------
+-- Initialization
+------------------------------------------------------------------------------------------------------------------------
+_usec_delay(1000000) -- 1sec delay on start
+
+setup_can_init()
+add_can_rxfilter(id_request_bootloader) 	-- add support for CANBus firmware upgrade
+add_can_rxfilter(id_rudder_position) 		-- Rudder Trim Position
+add_can_rxfilter(id_stabilizer_position) 	-- Aileron Trim Position
+setup_can_end()
+
+display_reset()
+gfx_init(0, display_orientation_h1, gfx_white)
+
+set_pin(P21, high) 								-- set green led and backlight on
+set_pin(P22, low) 								-- set red led off
+
+gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "1") -- RUDDER TRIM
+gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+gfx_draw_string(64,  15, gfx_black, gfx_green, font_tqs, "0")
+gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "1")
+
+gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "1") -- AILERON TRIM
+gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+gfx_draw_string(64,  80, gfx_black, gfx_green, font_tqs, "0")
+gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "1")
+
+------------------------------------------------------------------------------------------------------------------------
+-- Main Loop
+------------------------------------------------------------------------------------------------------------------------
+forever loop
+
+	request_bootloader("tqs_0002") -- add support for CANBus firmware upgrade by name
+
+	cf = get_can_frame(id_rudder_position)
+	if(cf.dlc > 0) then
+
+		rdr = sbyte(get_can_float(cf) / float(780)) -- 16383 / 20 positions
+
+		if(rdr_lat != rdr) then
+			
+			if(rdr <= -20) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "9")
+
+			elsif(rdr == -19) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -18) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "8")
+
+			elsif(rdr == -17) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -16) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "7")
+
+			elsif(rdr == -15) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -14) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "6")
+
+			elsif(rdr == -13) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -12) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "5")
+
+			elsif(rdr == -11) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -10) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "4")
+
+			elsif(rdr == -9) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -8) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "3")
+
+			elsif(rdr == -7) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -6) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "2")
+
+			elsif(rdr == -5) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(rdr == -4) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "1")
+
+			elsif(rdr == -3) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ">")
+			
+			elsif(rdr == -2) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 15, gfx_black, gfx_green, font_tqs, "0")
+
+			elsif(rdr == -1) then
+			
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  15, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+			
+			elsif(rdr == 0) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  15, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "1")
+
+			elsif(rdr == 1) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  15, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 2) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "2")
+
+			elsif(rdr == 3) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 4) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "3")
+
+			elsif(rdr == 5) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 6) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "4")
+
+			elsif(rdr == 7) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 8) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "5")
+
+			elsif(rdr == 9) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 10) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "6")
+
+			elsif(rdr == 11) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 12) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "7")
+
+			elsif(rdr == 13) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 14) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "8")
+
+			elsif(rdr == 15) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 16) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "9")
+
+			elsif(rdr == 17) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(rdr == 18) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ":")
+
+			elsif(rdr == 19) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ";")
+
+			elsif(rdr >= 20) then
+
+				gfx_draw_string(0, 	 15, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(32,  15, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  15, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(96,  15, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(128, 15, gfx_black, gfx_white, font_tqs, ";")
+
+			end if
+
+			rdr_lat = rdr
+
+		end if
+	
+	end if
+
+	cf = get_can_frame(id_stabilizer_position)
+	if(cf.dlc > 0) then
+
+		ail = sbyte(get_can_float(cf) / float(780)) -- 16383 / 20 positions
+		ail = ail * -1 -- Inverted Axis
+
+		if(ail_lat != ail) then
+			
+			if(ail <= -20) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "9")
+
+			elsif(ail == -19) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -18) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "8")
+
+			elsif(ail == -17) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -16) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "7")
+
+			elsif(ail == -15) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -14) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "6")
+
+			elsif(ail == -13) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -12) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "5")
+
+			elsif(ail == -11) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -10) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "4")
+
+			elsif(ail == -9) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -8) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "3")
+
+			elsif(ail == -7) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -6) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "2")
+
+			elsif(ail == -5) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+
+			elsif(ail == -4) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "1")
+
+			elsif(ail == -3) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ">")
+			
+			elsif(ail == -2) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(128, 80, gfx_black, gfx_green, font_tqs, "0")
+
+			elsif(ail == -1) then
+			
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(96,  80, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+			
+			elsif(ail == 0) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(64,  80, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "1")
+
+			elsif(ail == 1) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, ">")
+				gfx_draw_string(32,  80, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 2) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_green, font_tqs, "0")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "2")
+
+			elsif(ail == 3) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 4) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "1")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "3")
+
+			elsif(ail == 5) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 6) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "2")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "4")
+
+			elsif(ail == 7) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 8) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "3")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "5")
+
+			elsif(ail == 9) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 10) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "4")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "6")
+
+			elsif(ail == 11) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 12) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "5")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "7")
+
+			elsif(ail == 13) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 14) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "6")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "8")
+
+			elsif(ail == 15) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 16) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "7")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "9")
+
+			elsif(ail == 17) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, "<")
+
+			elsif(ail == 18) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "8")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ":")
+
+			elsif(ail == 19) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ";")
+
+			elsif(ail >= 20) then
+
+				gfx_draw_string(0, 	 80, gfx_black, gfx_white, font_tqs, "9")
+				gfx_draw_string(32,  80, gfx_black, gfx_white, font_tqs, "<")
+				gfx_draw_string(64,  80, gfx_black, gfx_white, font_tqs, ":")
+				gfx_draw_string(96,  80, gfx_black, gfx_white, font_tqs, ";")
+				gfx_draw_string(128, 80, gfx_black, gfx_white, font_tqs, ";")
+
+			end if
+
+			ail_lat = ail
+
+		end if
+
+	end if
+
+end loop
